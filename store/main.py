@@ -40,6 +40,9 @@ processed_agent_data = Table(
     Column("x", Float),
     Column("y", Float),
     Column("z", Float),
+    Column("roll", Float),
+    Column("pitch", Float),
+    Column("yaw", Float),
     Column("latitude", Float),
     Column("longitude", Float),
     Column("timestamp", DateTime),
@@ -55,6 +58,9 @@ class ProcessedAgentDataInDB(BaseModel):
     x: float
     y: float
     z: float
+    roll: float
+    pitch: float
+    yaw: float
     latitude: float
     longitude: float
     timestamp: datetime
@@ -62,9 +68,9 @@ class ProcessedAgentDataInDB(BaseModel):
 
 # FastAPI models
 class AccelerometerData(BaseModel):
-    x: float
-    y: float
-    z: float
+    x: int
+    y: int
+    z: int
 
 
 class GpsData(BaseModel):
@@ -72,10 +78,17 @@ class GpsData(BaseModel):
     longitude: float
 
 
+class GyroscopeData(BaseModel):
+    roll: float
+    pitch: float
+    yaw: float
+
+
 class AgentData(BaseModel):
     user_id: int
     accelerometer: AccelerometerData
     gps: GpsData
+    gyroscope: GyroscopeData
     timestamp: datetime
 
     @classmethod
@@ -113,12 +126,16 @@ async def websocket_endpoint(websocket: WebSocket, user_id: int):
     except WebSocketDisconnect:
         subscriptions[user_id].remove(websocket)
 
-
-# Function to send data to subscribed users
+# Function to send data to a specific subscribed user
 async def send_data_to_subscribers(user_id: int, data):
     if user_id in subscriptions:
         for websocket in subscriptions[user_id]:
             await websocket.send_json(json.dumps(data))
+
+# # Function to send data to all subscribed users
+# async def send_data_to_all_subscribers(data):
+#     for websocket in subscriptions.values():
+#         await websocket.send_json(json.dumps(data))
 
 
 # FastAPI CRUDL endpoints
@@ -128,7 +145,40 @@ async def send_data_to_subscribers(user_id: int, data):
 async def create_processed_agent_data(data: List[ProcessedAgentData]):
     # Insert data to database
     # Send data to subscribers
-    pass
+    to_insert = []
+    for item in data:
+        to_insert.append({
+            "user_id": item.agent_data.user_id,
+            "road_state": item.road_state,
+            "x": item.agent_data.accelerometer.x,
+            "y": item.agent_data.accelerometer.y,
+            "z": item.agent_data.accelerometer.z,
+            "roll": item.agent_data.gyroscope.roll,
+            "pitch": item.agent_data.gyroscope.pitch,
+            "yaw": item.agent_data.gyroscope.yaw,
+            "latitude": item.agent_data.gps.latitude,
+            "longitude": item.agent_data.gps.longitude,
+            "timestamp": str(item.agent_data.timestamp),
+        })
+
+    db_session = SessionLocal()
+    try:
+        insert_stmt = processed_agent_data.insert().values(to_insert)
+        db_session.execute(insert_stmt)
+        db_session.commit()
+
+        created_count = len(to_insert)
+        select_stmt = (
+            processed_agent_data.select()
+            .order_by(processed_agent_data.c.id.desc())
+            .limit(created_count)
+        )
+        rows = db_session.execute(select_stmt).fetchall()
+        # print(type(rows), ';;;;;;;')
+        await send_data_to_subscribers(item.agent_data.user_id, to_insert)
+        return str(rows)
+    finally:
+        db_session.close()
 
 
 @app.get(
@@ -137,13 +187,29 @@ async def create_processed_agent_data(data: List[ProcessedAgentData]):
 )
 def read_processed_agent_data(processed_agent_data_id: int):
     # Get data by id
-    pass
+    db_session = SessionLocal()
+    try:
+        select_stmt = processed_agent_data.select().where(
+            processed_agent_data.c.id == processed_agent_data_id
+        )
+        row = db_session.execute(select_stmt).fetchone()
+        if row is None:
+            raise HTTPException(status_code=404, detail="ProcessedAgentData not found")
+        return row
+    finally:
+        db_session.close()
 
 
 @app.get("/processed_agent_data/", response_model=list[ProcessedAgentDataInDB])
 def list_processed_agent_data():
     # Get list of data
-    pass
+    db_session = SessionLocal()
+    try:
+        select_stmt = processed_agent_data.select()
+        rows = db_session.execute(select_stmt).fetchall()
+        return rows
+    finally:
+        db_session.close()
 
 
 @app.put(
@@ -152,7 +218,38 @@ def list_processed_agent_data():
 )
 def update_processed_agent_data(processed_agent_data_id: int, data: ProcessedAgentData):
     # Update data
-    pass
+    db_session = SessionLocal()
+    try:
+        update_stmt = (
+            processed_agent_data.update()
+            .where(processed_agent_data.c.id == processed_agent_data_id)
+            .values(
+                user_id=data.agent_data.user_id,
+                road_state=data.road_state,
+                x=data.agent_data.accelerometer.x,
+                y=data.agent_data.accelerometer.y,
+                z=data.agent_data.accelerometer.z,
+                roll=data.agent_data.gyroscope.roll,
+                pitch=data.agent_data.gyroscope.pitch,
+                yaw=data.agent_data.gyroscope.yaw,
+                latitude=data.agent_data.gps.latitude,
+                longitude=data.agent_data.gps.longitude,
+                timestamp=data.agent_data.timestamp,
+            )
+            .returning(processed_agent_data)
+        )
+
+        updated_row = db_session.execute(update_stmt).fetchone()
+        db_session.commit()
+
+        if updated_row is None:
+            raise HTTPException(
+                status_code=404, detail="ProcessedAgentData to update not found"
+            )
+
+        return updated_row
+    finally:
+        db_session.close()
 
 
 @app.delete(
@@ -161,7 +258,28 @@ def update_processed_agent_data(processed_agent_data_id: int, data: ProcessedAge
 )
 def delete_processed_agent_data(processed_agent_data_id: int):
     # Delete by id
-    pass
+    db_session = SessionLocal()
+    try:
+        select_stmt = processed_agent_data.select().where(
+            processed_agent_data.c.id == processed_agent_data_id
+        )
+        row = db_session.execute(select_stmt).fetchone()
+
+        if row is None:
+            raise HTTPException(
+                status_code=404, detail="ProcessedAgentData to delete not found"
+            )
+
+        delete_stmt = processed_agent_data.delete().where(
+            processed_agent_data.c.id == processed_agent_data_id
+        )
+        db_session.execute(delete_stmt)
+        db_session.commit()
+
+        return row
+    finally:
+        db_session.close()
+
 
 
 if __name__ == "__main__":

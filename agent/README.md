@@ -1,5 +1,5 @@
 ### IoT Project
-This directory contains code for Lab work #1.2 (Store)
+This directory contains code for Lab work #1.1 (Agent)
 
 Для запуску:
 ```bash
@@ -11,4 +11,4 @@ docker-compose up --build
 
 Done by a student:
 
-IO-51мп Маруженко Іван
+IO-51мп Бойко Катерина
