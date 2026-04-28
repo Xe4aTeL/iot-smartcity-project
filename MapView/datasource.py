@@ -11,9 +11,12 @@ from config import STORE_HOST, STORE_PORT
 class ProcessedAgentData(BaseModel):
     road_state: str
     user_id: int
-    x: float
-    y: float
-    z: float
+    x: int
+    y: int
+    z: int
+    roll: float
+    pitch: float
+    yaw: float
     latitude: float
     longitude: float
     timestamp: datetime
