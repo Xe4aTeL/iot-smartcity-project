@@ -5,6 +5,9 @@ CREATE TABLE processed_agent_data (
     x FLOAT,
     y FLOAT,
     z FLOAT,
+    roll FLOAT,
+    pitch FLOAT,
+    yaw FLOAT,
     latitude FLOAT,
     longitude FLOAT,
     timestamp TIMESTAMP

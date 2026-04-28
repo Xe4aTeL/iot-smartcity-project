@@ -3,9 +3,9 @@ from pydantic import BaseModel, field_validator
 
 
 class AccelerometerData(BaseModel):
-    x: float
-    y: float
-    z: float
+    x: int
+    y: int
+    z: int
 
 
 class GpsData(BaseModel):
@@ -13,16 +13,22 @@ class GpsData(BaseModel):
     longitude: float
 
 
+class GyroscopeData(BaseModel):
+    roll: float
+    pitch: float
+    yaw: float
+
+
 class AgentData(BaseModel):
     user_id: int
     accelerometer: AccelerometerData
     gps: GpsData
+    gyroscope: GyroscopeData
     timestamp: datetime
 
     @classmethod
-    @field_validator('timestamp', mode='before')
-    def parse_timestamp(cls, value):
-        # Convert the timestamp to a datetime object
+    @field_validator("timestamp", mode="before")
+    def check_timestamp(cls, value):
         if isinstance(value, datetime):
             return value
         try:
