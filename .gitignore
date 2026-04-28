@@ -206,9 +206,7 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 
-agent/docker/mosquitto/data/
-agent/docker/mosquitto/log/
-docker/mosquitto/data/
-docker/mosquitto/log/
+**/docker/mosquitto/data/
+**/docker/mosquitto/log/
 MapView/cache/
 *.env
