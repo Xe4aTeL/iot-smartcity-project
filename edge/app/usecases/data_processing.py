@@ -12,9 +12,9 @@ def process_agent_data(
     Returns:
         processed_data_batch (ProcessedAgentData): Processed data containing the classified state of the road surface and agent data.
     """
-    if agent_data.accelerometer.z > 15000:
+    if agent_data.accelerometer.y > 8000:
         road_state: str = "bump"
-    elif agent_data.accelerometer.z < -15000:
+    elif agent_data.accelerometer.y < -10500:
         road_state: str = "pit"
     else:
         road_state: str = "flat"
