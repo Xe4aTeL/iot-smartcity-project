@@ -88,7 +88,8 @@ class MapViewApp(App):
         Оновлює відображення маркера паркоміста на мапі
         :param data: AgentData паркоміста
         """
-        image_source = "images/parking_theft.png" if data.possible_theft else "images/parking_normal.png"
+        image_source = "images/parking_theft.png" if data.possible_theft else "images/parking_normal.png" if \
+        data.occupancy_status == "Vacant" else "images/parking_occupied.png"
         
         if data.user_id in self.parking_spaces:
             self.parking_spaces[data.user_id].source = image_source
