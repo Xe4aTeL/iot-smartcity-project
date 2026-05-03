@@ -1,7 +1,8 @@
 import asyncio
 import json
-from datetime import datetime
 import websockets
+from datetime import datetime
+from typing import Optional
 from kivy import Logger
 from pydantic import BaseModel, field_validator
 from config import STORE_HOST, STORE_PORT
@@ -9,17 +10,28 @@ from config import STORE_HOST, STORE_PORT
 
 # Pydantic models
 class ProcessedAgentData(BaseModel):
-    road_state: str
+    agent_type: str  # e.g., 'car', 'traffic_light', 'parking_space'
     user_id: int
-    x: int
-    y: int
-    z: int
-    roll: float
-    pitch: float
-    yaw: float
+    timestamp: datetime
     latitude: float
     longitude: float
-    timestamp: datetime
+    
+    # Optional fields depending on the agent
+    road_state: Optional[str] = None
+    traffic_jam: Optional[bool] = False
+    possible_theft: Optional[bool] = False
+    x: Optional[int] = None
+    y: Optional[int] = None
+    z: Optional[int] = None
+    roll: Optional[float] = None
+    pitch: Optional[float] = None
+    yaw: Optional[float] = None
+    traffic_volume: Optional[int] = None
+    avg_vehicle_speed: Optional[float] = None
+    accident_reported: Optional[int] = None
+    signal_status: Optional[str] = None
+    occupancy_status: Optional[str] = None
+    environmental_noise_level: Optional[float] = None
 
     @classmethod
     @field_validator("timestamp", mode="before")
@@ -73,12 +85,4 @@ class Datasource:
             ],
             key=lambda v: v.timestamp,
         )
-        new_points = [
-            (
-                processed_agent_data.latitude,
-                processed_agent_data.longitude,
-                processed_agent_data.road_state,
-            )
-            for processed_agent_data in processed_agent_data_list
-        ]
-        self._new_points.extend(new_points)
+        self._new_points.extend(processed_agent_data_list)
