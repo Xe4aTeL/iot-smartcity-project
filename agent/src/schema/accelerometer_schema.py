@@ -2,6 +2,6 @@ from marshmallow import Schema, fields
 
 
 class AccelerometerSchema(Schema):
-    x = fields.Int()
-    y = fields.Int()
-    z = fields.Int()
+    x = fields.Integer()
+    y = fields.Integer()
+    z = fields.Integer()

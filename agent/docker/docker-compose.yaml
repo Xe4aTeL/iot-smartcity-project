@@ -1,4 +1,3 @@
-version: "3.9"
 name: "road_vision"
 services:
   mqtt:
@@ -15,16 +14,52 @@ services:
       mqtt_network:
 
 
-  fake_agent:
-    container_name: agent
+  agent_car_1:
+    container_name: agent_car_1
     build: ../
     depends_on:
       - mqtt
     environment:
+      USER_ID: 1
+      AGENT_TYPE: "car"
       MQTT_BROKER_HOST: "mqtt"
       MQTT_BROKER_PORT: 1883
       MQTT_TOPIC: "agent_data_topic"
-      DELAY: 0.1
+      DELAY: 1
+    networks:
+      mqtt_network:
+
+  agent_traffic_light_1:
+    container_name: agent_traffic_light_1
+    build: ../
+    depends_on:
+      - mqtt
+    environment:
+      USER_ID: 2
+      AGENT_TYPE: "traffic_light"
+      MQTT_BROKER_HOST: "mqtt"
+      MQTT_BROKER_PORT: 1883
+      MQTT_TOPIC: "agent_data_topic"
+      DELAY: 30
+      LATITUDE: 50.45029494727575
+      LONTITUDE: 30.524486567396327
+    networks:
+      mqtt_network:
+
+  agent_parking_space_1:
+    container_name: agent_parking_space_1
+    build: ../
+    depends_on:
+      - mqtt
+    environment:
+      USER_ID: 3
+      AGENT_TYPE: "parking_space"
+      MQTT_BROKER_HOST: "mqtt"
+      MQTT_BROKER_PORT: 1883
+      MQTT_TOPIC: "agent_data_topic"
+      DELAY: 60
+      LATITUDE: 50.455430327362116
+      LONTITUDE: 30.51994399239887
     networks:
       mqtt_network:
 

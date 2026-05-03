@@ -11,6 +11,7 @@ from sqlalchemy import (
     String,
     Float,
     DateTime,
+    Boolean,
 )
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.sql import select
@@ -35,17 +36,30 @@ processed_agent_data = Table(
     "processed_agent_data",
     metadata,
     Column("id", Integer, primary_key=True, index=True),
-    Column("road_state", String),
+    Column("agent_type", String),
     Column("user_id", Integer),
-    Column("x", Float),
-    Column("y", Float),
-    Column("z", Float),
+    Column("timestamp", DateTime),
+    Column("road_state", String),
+    Column("traffic_jam", Boolean),
+    Column("possible_theft", Boolean),
+    # Pos
+    Column("latitude", Float),
+    Column("longitude", Float),
+    # Car
+    Column("x", Integer),
+    Column("y", Integer),
+    Column("z", Integer),
     Column("roll", Float),
     Column("pitch", Float),
     Column("yaw", Float),
-    Column("latitude", Float),
-    Column("longitude", Float),
-    Column("timestamp", DateTime),
+    # Traffic Light
+    Column("traffic_volume", Integer),
+    Column("avg_vehicle_speed", Float),
+    Column("accident_reported", Integer),
+    Column("signal_status", String),
+    # Parking Space
+    Column("occupancy_status", String),
+    Column("environmental_noise_level", Float),
 )
 SessionLocal = sessionmaker(bind=engine)
 
@@ -53,17 +67,25 @@ SessionLocal = sessionmaker(bind=engine)
 # SQLAlchemy model
 class ProcessedAgentDataInDB(BaseModel):
     id: int
-    road_state: str
     user_id: int
-    x: float
-    y: float
-    z: float
+    timestamp: datetime
+    road_state: str
+    traffic_jam: bool
+    possible_theft: bool
+    latitude: float
+    longitude: float
+    x: int
+    y: int
+    z: int
     roll: float
     pitch: float
     yaw: float
-    latitude: float
-    longitude: float
-    timestamp: datetime
+    traffic_volume: int
+    avg_vehicle_speed: float
+    accident_reported: int
+    signal_status: str
+    occupancy_status: str
+    environmental_noise_level: float
 
 
 # FastAPI models
@@ -83,13 +105,32 @@ class GyroscopeData(BaseModel):
     pitch: float
     yaw: float
 
+class ParkingSpaceData(BaseModel):
+    latitude: float
+    longitude: float
+    occupancy_status: str
+    environmental_noise_level: float
+
+
+class TrafficLightData(BaseModel):
+    latitude: float
+    longitude: float
+    traffic_volume: int
+    avg_vehicle_speed: float
+    accident_reported: int
+    signal_status: str
+
 
 class AgentData(BaseModel):
     user_id: int
-    accelerometer: AccelerometerData
-    gps: GpsData
-    gyroscope: GyroscopeData
+    agent_type: str
     timestamp: datetime
+
+    accelerometer: AccelerometerData | None
+    gps: GpsData | None
+    gyroscope: GyroscopeData | None
+    traffic_light: TrafficLightData | None
+    parking_space: ParkingSpaceData | None
 
     @classmethod
     @field_validator("timestamp", mode="before")
@@ -105,8 +146,10 @@ class AgentData(BaseModel):
 
 
 class ProcessedAgentData(BaseModel):
-    road_state: str
     agent_data: AgentData
+    road_state: str
+    traffic_jam: bool
+    possible_theft: bool
 
 
 # WebSocket subscriptions
@@ -148,17 +191,30 @@ async def create_processed_agent_data(data: List[ProcessedAgentData]):
     to_insert = []
     for item in data:
         to_insert.append({
+            "agent_type": item.agent_data.agent_type,
             "user_id": item.agent_data.user_id,
-            "road_state": item.road_state,
-            "x": item.agent_data.accelerometer.x,
-            "y": item.agent_data.accelerometer.y,
-            "z": item.agent_data.accelerometer.z,
-            "roll": item.agent_data.gyroscope.roll,
-            "pitch": item.agent_data.gyroscope.pitch,
-            "yaw": item.agent_data.gyroscope.yaw,
-            "latitude": item.agent_data.gps.latitude,
-            "longitude": item.agent_data.gps.longitude,
             "timestamp": str(item.agent_data.timestamp),
+            "road_state": item.road_state,
+            "traffic_jam": item.traffic_jam,
+            "possible_theft": item.possible_theft,
+            "latitude": item.agent_data.gps.latitude if item.agent_data.agent_type == "car" else \
+            item.agent_data.traffic_light.latitude if item.agent_data.agent_type == "traffic_light" else \
+            item.agent_data.parking_space.latitude,
+            "longitude": item.agent_data.gps.longitude if item.agent_data.agent_type == "car" else \
+            item.agent_data.traffic_light.longitude if item.agent_data.agent_type == "traffic_light" else \
+            item.agent_data.parking_space.longitude,
+            "x": item.agent_data.accelerometer.x if item.agent_data.agent_type == "car" else None,
+            "y": item.agent_data.accelerometer.y if item.agent_data.agent_type == "car" else None,
+            "z": item.agent_data.accelerometer.z if item.agent_data.agent_type == "car" else None,
+            "roll": item.agent_data.gyroscope.roll if item.agent_data.agent_type == "car" else None,
+            "pitch": item.agent_data.gyroscope.pitch if item.agent_data.agent_type == "car" else None,
+            "yaw": item.agent_data.gyroscope.yaw if item.agent_data.agent_type == "car" else None,
+            "traffic_volume": item.agent_data.traffic_light.traffic_volume if item.agent_data.agent_type == "traffic_light" else None,
+            "avg_vehicle_speed": item.agent_data.traffic_light.avg_vehicle_speed if item.agent_data.agent_type == "traffic_light" else None,
+            "accident_reported": item.agent_data.traffic_light.accident_reported if item.agent_data.agent_type == "traffic_light" else None,
+            "signal_status": item.agent_data.traffic_light.signal_status if item.agent_data.agent_type == "traffic_light" else None,
+            "occupancy_status": item.agent_data.parking_space.occupancy_status if item.agent_data.agent_type == "parking_space" else None,
+            "environmental_noise_level": item.agent_data.parking_space.environmental_noise_level if item.agent_data.agent_type == "parking_space" else None,
         })
 
     db_session = SessionLocal()
@@ -174,7 +230,6 @@ async def create_processed_agent_data(data: List[ProcessedAgentData]):
             .limit(created_count)
         )
         rows = db_session.execute(select_stmt).fetchall()
-        # print(type(rows), ';;;;;;;')
         await send_data_to_subscribers(item.agent_data.user_id, to_insert)
         return str(rows)
     finally:
@@ -224,17 +279,30 @@ def update_processed_agent_data(processed_agent_data_id: int, data: ProcessedAge
             processed_agent_data.update()
             .where(processed_agent_data.c.id == processed_agent_data_id)
             .values(
+                agent_type=data.agent_data.agent_type,
                 user_id=data.agent_data.user_id,
-                road_state=data.road_state,
-                x=data.agent_data.accelerometer.x,
-                y=data.agent_data.accelerometer.y,
-                z=data.agent_data.accelerometer.z,
-                roll=data.agent_data.gyroscope.roll,
-                pitch=data.agent_data.gyroscope.pitch,
-                yaw=data.agent_data.gyroscope.yaw,
-                latitude=data.agent_data.gps.latitude,
-                longitude=data.agent_data.gps.longitude,
                 timestamp=data.agent_data.timestamp,
+                road_state=data.road_state,
+                traffic_jam=data.traffic_jam,
+                possible_theft=data.possible_theft,
+                latitude=data.agent_data.gps.latitude if data.agent_data.agent_type == "car" else \
+                data.agent_data.traffic_light.latitude if data.agent_data.agent_type == "traffic_light" else \
+                data.agent_data.parking_space.latitude,
+                longitude=data.agent_data.gps.longitude if data.agent_data.agent_type == "car" else \
+                data.agent_data.traffic_light.longitude if data.agent_data.agent_type == "traffic_light" else \
+                data.agent_data.parking_space.longitude,
+                x=data.agent_data.accelerometer.x if item.agent_data.agent_type == "car" else None,
+                y=data.agent_data.accelerometer.y if item.agent_data.agent_type == "car" else None,
+                z=data.agent_data.accelerometer.z if item.agent_data.agent_type == "car" else None,
+                roll=data.agent_data.gyroscope.roll if item.agent_data.agent_type == "car" else None,
+                pitch=data.agent_data.gyroscope.pitch if item.agent_data.agent_type == "car" else None,
+                yaw=data.agent_data.gyroscope.yaw if item.agent_data.agent_type == "car" else None,
+                traffic_volume=data.agent_data.traffic_light.traffic_volume if item.agent_data.agent_type == "traffic_light" else None,
+                avg_vehicle_speed=data.agent_data.traffic_light.avg_vehicle_speed if item.agent_data.agent_type == "traffic_light" else None,
+                accident_reported=data.agent_data.traffic_light.accident_reported if item.agent_data.agent_type == "traffic_light" else None,
+                signal_status=data.agent_data.traffic_light.signal_status if item.agent_data.agent_type == "traffic_light" else None,
+                occupancy_status=data.agent_data.parking_space.data.agent_data.traffic_light if item.agent_data.agent_type == "parking_space" else None,
+                environmental_noise_level=data.agent_data.parking_space.data.agent_data.traffic_light if item.agent_data.agent_type == "parking_space" else None,
             )
             .returning(processed_agent_data)
         )

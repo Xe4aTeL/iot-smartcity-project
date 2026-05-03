@@ -1,21 +1,26 @@
 import asyncio
-import csv
-import json
-import websockets
+import collections
 from kivy.app import App
 from kivy_garden.mapview import MapMarker, MapView
 from kivy.clock import Clock
-from lineMapLayer import LineMapLayer
 from datasource import Datasource
 
 
 class MapViewApp(App):
     def __init__(self, **kwargs):
         super().__init__()
-        # додати необхідні змінні
         self.user_id = 1
-        self.car_marker = None
         self.datasource = Datasource(user_id=self.user_id)
+
+        # Car tracking
+        self.car_marker = None
+        # FIFO queue keeping exactly the last 50 states
+        self.car_road_state_history = collections.deque(maxlen=50)
+
+        # Dictionaries to keep track of static markers by their ID
+        self.traffic_lights = {}
+        self.parking_spaces = {}
+        self.traffic_jam_icons = {}
 
     def on_start(self):
         """
@@ -29,34 +34,84 @@ class MapViewApp(App):
         """
         new_points = self.datasource.get_new_points()
         
-        for lat, lon, road_state in new_points:
-            point = (lat, lon)
+        for point_data in new_points:
+            agent_type = point_data.agent_type
             
-            # Оновлюємо позицію машини
-            self.update_car_marker(point)
-            
-            # Додаємо маркер, якщо виявлено яму або лежачого поліцейського
-            if road_state == "bump":
-                self.set_bump_marker(point)
-            elif road_state == "pit":
-                self.set_pothole_marker(point)
+            if agent_type == "car":
+                self.handle_car_update(point_data)
+            elif agent_type == "traffic_light":
+                self.handle_traffic_light_update(point_data)
+            elif agent_type == "parking_space":
+                self.handle_parking_space_update(point_data)
 
-    def update_car_marker(self, point):
+    def handle_car_update(self, data):
         """
         Оновлює відображення маркера машини на мапі
-        :param point: GPS координати
+        :param data: AgentData машини
         """
-        lat, lon = point
-        
-        # Якщо маркер машини ще не створений, створюємо його
         if self.car_marker is None:
-            self.car_marker = MapMarker(lat=lat, lon=lon, source="images/car.png")
+            self.car_marker = MapMarker(lat=data.latitude, lon=data.longitude, source="images/car.png")
             self.mapview.add_widget(self.car_marker)
         else:
-            self.car_marker.lat = lat
-            self.car_marker.lon = lon
+            self.car_marker.lat = data.latitude
+            self.car_marker.lon = data.longitude
         
-        self.mapview.center_on(lat, lon)
+        self.mapview.center_on(data.latitude, data.longitude)
+
+        if data.road_state:
+            self.car_road_state_history.append(data.road_state)
+            
+            if data.road_state == "bump":
+                self.set_bump_marker((data.latitude, data.longitude))
+            elif data.road_state == "pit":
+                self.set_pothole_marker((data.latitude, data.longitude))
+
+    def handle_traffic_light_update(self, data):
+        """
+        Оновлює відображення маркера світлофору на мапі
+        :param data: AgentData світлофора
+        """
+        status = data.signal_status.lower() if data.signal_status else "red"
+        image_source = f"images/traffic_{status}.png"
+
+        if data.user_id in self.traffic_lights:
+            self.traffic_lights[data.user_id].source = image_source
+        else:
+            marker = MapMarker(lat=data.latitude, lon=data.longitude, source=image_source)
+            self.traffic_lights[data.user_id] = marker
+            self.mapview.add_widget(marker)
+
+        self.handle_traffic_jam(data)
+
+    def handle_parking_space_update(self, data):
+        """
+        Оновлює відображення маркера паркоміста на мапі
+        :param data: AgentData паркоміста
+        """
+        image_source = "images/parking_theft.png" if data.possible_theft else "images/parking_normal.png"
+        
+        if data.user_id in self.parking_spaces:
+            self.parking_spaces[data.user_id].source = image_source
+        else:
+            marker = MapMarker(lat=data.latitude, lon=data.longitude, source=image_source)
+            self.parking_spaces[data.user_id] = marker
+            self.mapview.add_widget(marker)
+
+    def handle_traffic_jam(self, data):
+        """
+        Встановлює маркер для затору
+        :param data: AgentData світлофора
+        """
+        if data.traffic_jam:
+            if data.user_id not in self.traffic_jam_icons:
+                # Невеликий здвиг
+                jam_marker = MapMarker(lat=data.latitude + 0.0001, lon=data.longitude + 0.0001, source="images/jam.png")
+                self.traffic_jam_icons[data.user_id] = jam_marker
+                self.mapview.add_widget(jam_marker)
+        else:
+            if data.user_id in self.traffic_jam_icons:
+                jam_marker = self.traffic_jam_icons.pop(data.user_id)
+                self.mapview.remove_widget(jam_marker)
 
     def set_pothole_marker(self, point):
         """
@@ -81,27 +136,8 @@ class MapViewApp(App):
         Ініціалізує мапу MapView(zoom, lat, lon)
         :return: мапу
         """
-        self.mapview = MapView()
+        self.mapview = MapView(zoom=15, lat=50.4501, lon=30.5234) # Kyiv center
         return self.mapview
-
-    def read_accel_data(self, filename):
-        """Читає дані акселерометра з CSV-файлу"""
-        with open(filename, "r", encoding="utf-8") as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                x = float(row["X"])
-                y = float(row["Y"])
-                z = float(row["Z"])
-                self.accel_data.append((x, y, z))
-
-    def read_gps_data(self, filename):
-        """Читає GPS-координати з CSV-файлу"""
-        with open(filename, "r", encoding="utf-8") as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                lat = float(row["lat"])
-                lon = float(row["lon"])
-                self.gps_data.append((lat, lon))
 
 
 if __name__ == "__main__":

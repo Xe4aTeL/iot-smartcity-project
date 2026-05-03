@@ -62,7 +62,6 @@ services:
     networks:
       hub_store:
       db_network:
-      hub:
 
   edge:
     container_name: edge
@@ -92,13 +91,97 @@ services:
       hub_store:
       hub_redis:
 
-  fake_agent:
-    container_name: agent
+  agent_car_1:
+    container_name: agent_car_1
     build: ../agent
     depends_on:
       - mqtt
     env_file:
       - path: ../default.env
+    environment:
+      USER_ID: 1
+      AGENT_TYPE: "car"
+      DELAY: 1
+    networks:
+      mqtt_network:
+
+  agent_traffic_light_1:
+    container_name: agent_traffic_light_1
+    build: ../agent
+    depends_on:
+      - mqtt
+    env_file:
+      - path: ../default.env
+    environment:
+      USER_ID: 2
+      AGENT_TYPE: "traffic_light"
+      DELAY: 30
+      LATITUDE: 50.45029494727575
+      LONTITUDE: 30.524486567396327
+    networks:
+      mqtt_network:
+
+  agent_traffic_light_2:
+    container_name: agent_traffic_light_2
+    build: ../agent
+    depends_on:
+      - mqtt
+    env_file:
+      - path: ../default.env
+    environment:
+      USER_ID: 3
+      AGENT_TYPE: "traffic_light"
+      DELAY: 30
+      LATITUDE: 50.45506951222323
+      LONTITUDE: 30.52062624365189
+    networks:
+      mqtt_network:
+
+  agent_traffic_light_3:
+    container_name: agent_traffic_light_3
+    build: ../agent
+    depends_on:
+      - mqtt
+    env_file:
+      - path: ../default.env
+    environment:
+      USER_ID: 4
+      AGENT_TYPE: "traffic_light"
+      DELAY: 30
+      LATITUDE: 50.44778606866356
+      LONTITUDE: 30.521873120186182
+    networks:
+      mqtt_network:
+
+  agent_parking_space_1:
+    container_name: agent_parking_space_1
+    build: ../agent
+    depends_on:
+      - mqtt
+    env_file:
+      - path: ../default.env
+    environment:
+      USER_ID: 5
+      AGENT_TYPE: "parking_space"
+      DELAY: 60
+      LATITUDE: 50.455430327362116
+      LONTITUDE: 30.51994399239887
+    networks:
+      mqtt_network:
+
+  agent_parking_space_2:
+    container_name: agent_parking_space_2
+    build: ../agent
+    depends_on:
+      - mqtt
+    env_file:
+      - path: ../default.env
+    environment:
+      USER_ID: 6
+      AGENT_TYPE: "parking_space"
+      DELAY: 60
+      LATITUDE: 50.4535703820191
+      LONTITUDE: 30.52123980825806
     networks:
       mqtt_network:
 
@@ -106,7 +189,6 @@ networks:
   mqtt_network:
   db_network:
   edge_hub:
-  hub:
   hub_store:
   hub_redis:
 

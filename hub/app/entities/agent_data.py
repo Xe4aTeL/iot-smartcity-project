@@ -9,8 +9,8 @@ class AccelerometerData(BaseModel):
 
 
 class GpsData(BaseModel):
-    latitude: float
     longitude: float
+    latitude: float
 
 
 class GyroscopeData(BaseModel):
@@ -19,12 +19,32 @@ class GyroscopeData(BaseModel):
     yaw: float
 
 
+class ParkingSpaceData(BaseModel):
+    latitude: float
+    longitude: float
+    occupancy_status: str
+    environmental_noise_level: float
+
+
+class TrafficLightData(BaseModel):
+    latitude: float
+    longitude: float
+    traffic_volume: int
+    avg_vehicle_speed: float
+    accident_reported: int
+    signal_status: str
+
+
 class AgentData(BaseModel):
     user_id: int
-    accelerometer: AccelerometerData
-    gps: GpsData
-    gyroscope: GyroscopeData
+    agent_type: str
     timestamp: datetime
+
+    accelerometer: AccelerometerData | None
+    gps: GpsData | None
+    gyroscope: GyroscopeData | None
+    traffic_light: TrafficLightData | None
+    parking_space: ParkingSpaceData | None
 
     @classmethod
     @field_validator("timestamp", mode="before")
