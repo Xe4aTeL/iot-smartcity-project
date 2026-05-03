@@ -50,7 +50,7 @@ class MapViewApp(App):
         :param data: AgentData машини
         """
         if self.car_marker is None:
-            self.car_marker = MapMarker(lat=data.latitude, lon=data.longitude, source="images/car.png", size_hint=(None, None), size=(40, 40))
+            self.car_marker = MapMarker(lat=data.latitude, lon=data.longitude, source="images/car.png")
             self.mapview.add_widget(self.car_marker)
         else:
             self.car_marker.lat = data.latitude
@@ -77,7 +77,7 @@ class MapViewApp(App):
         if data.user_id in self.traffic_lights:
             self.traffic_lights[data.user_id].source = image_source
         else:
-            marker = MapMarker(lat=data.latitude, lon=data.longitude, source=image_source, size_hint=(None, None), size=(30, 30))
+            marker = MapMarker(lat=data.latitude, lon=data.longitude, source=image_source)
             self.traffic_lights[data.user_id] = marker
             self.mapview.add_widget(marker)
 
@@ -93,7 +93,7 @@ class MapViewApp(App):
         if data.user_id in self.parking_spaces:
             self.parking_spaces[data.user_id].source = image_source
         else:
-            marker = MapMarker(lat=data.latitude, lon=data.longitude, source=image_source, size_hint=(None, None), size=(30, 30))
+            marker = MapMarker(lat=data.latitude, lon=data.longitude, source=image_source)
             self.parking_spaces[data.user_id] = marker
             self.mapview.add_widget(marker)
 
@@ -105,7 +105,7 @@ class MapViewApp(App):
         if data.traffic_jam:
             if data.user_id not in self.traffic_jam_icons:
                 # Невеликий здвиг
-                jam_marker = MapMarker(lat=data.latitude + 0.0001, lon=data.longitude + 0.0001, source="images/jam.png", size_hint=(None, None), size=(20, 20))
+                jam_marker = MapMarker(lat=data.latitude + 0.0001, lon=data.longitude + 0.0001, source="images/jam.png")
                 self.traffic_jam_icons[data.user_id] = jam_marker
                 self.mapview.add_widget(jam_marker)
         else:
@@ -119,7 +119,7 @@ class MapViewApp(App):
         :param point: GPS координати
         """
         lat, lon = point
-        pothole_marker = MapMarker(lat=lat, lon=lon, source="images/pothole.png", size_hint=(None, None), size=(20, 20))
+        pothole_marker = MapMarker(lat=lat, lon=lon, source="images/pothole.png")
         self.mapview.add_widget(pothole_marker)
 
     def set_bump_marker(self, point):
@@ -128,7 +128,7 @@ class MapViewApp(App):
         :param point: GPS координати
         """
         lat, lon = point
-        bump_marker = MapMarker(lat=lat, lon=lon, source="images/bump.png", size_hint=(None, None), size=(20, 20))
+        bump_marker = MapMarker(lat=lat, lon=lon, source="images/bump.png")
         self.mapview.add_widget(bump_marker)
 
     def build(self):
@@ -136,7 +136,7 @@ class MapViewApp(App):
         Ініціалізує мапу MapView(zoom, lat, lon)
         :return: мапу
         """
-        self.mapview = MapView(zoom=15, lat=50.4501, lon=30.5234)
+        self.mapview = MapView(zoom=15, lat=50.4501, lon=30.5234) # Kyiv center
         return self.mapview
 
 
