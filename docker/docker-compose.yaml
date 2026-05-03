@@ -27,6 +27,19 @@ services:
       - "5432:5432"
     networks:
       db_network:
+      grafana-agent:
+
+  pdc-agent:
+    image: grafana/pdc-agent:latest
+    restart: unless-stopped
+    env_file:
+      - path: ../default.env
+    command:
+      - -token=${PDC_TOKEN}
+      - -cluster=${PDC_CLUSTER}
+      - -gcloud-hosted-grafana-id=${GRAFANA_ID}
+    networks:
+      grafana-agent:
 
   pgadmin:
     container_name: pgadmin4
@@ -188,6 +201,8 @@ services:
 networks:
   mqtt_network:
   db_network:
+  grafana-agent:
+    driver: bridge
   edge_hub:
   hub_store:
   hub_redis:
